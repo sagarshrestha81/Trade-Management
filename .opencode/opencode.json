@@ -1,0 +1,5 @@
+{
+  "plugin": [
+    "caveman-opencode-plugin@latest"
+  ]
+}

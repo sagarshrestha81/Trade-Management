@@ -1,0 +1,85 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  trades       Trade[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Trade {
+  id                  String        @id @default(uuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  status              String        @default("ACTIVE") // ACTIVE, CLOSED
+  rolloverProfit      Float         @default(0.0)      // Profit rolled over into this trade
+  rolloverFromTradeId String?
+  stocks              Stock[]
+  investors           Investor[]
+  transactions        Transaction[]
+  auditLogs           AuditLog[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model Stock {
+  id           String   @id @default(uuid())
+  tradeId      String
+  trade        Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  name         String
+  quantity     Float
+  buyPrice     Float
+  currentPrice Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Investor {
+  id               String        @id @default(uuid())
+  tradeId          String
+  trade            Trade         @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  name             String        // Owner, Usha, Mom, Dynamic name
+  investmentAmount Float         @default(0.0) // Cached total net investment for easy indexing
+  transactions     Transaction[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  
+  @@unique([tradeId, name])
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  tradeId     String
+  trade       Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  investorId  String
+  investor    Investor @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  amount      Float    // Positive for deposits, negative for withdrawals
+  type        String   // DEPOSIT, WITHDRAWAL, ROLLOVER
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradeId   String?
+  trade     Trade?   @relation(fields: [tradeId], references: [id], onDelete: SetNull)
+  action    String   // e.g. CREATE_TRADE, ADD_STOCK, TRANSACTION
+  details   String
+  createdAt DateTime @default(now())
+}
